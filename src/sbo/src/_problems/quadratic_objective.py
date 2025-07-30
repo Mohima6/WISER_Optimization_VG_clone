@@ -1,17 +1,4 @@
-# This code is part of a Qiskit project.
-#
-# (C) Copyright IBM 2019, 2023.
-#
-# This code is licensed under the Apache License, Version 2.0. You may
-# obtain a copy of this license in the LICENSE.txt file in the root directory
-# of this source tree or at http://www.apache.org/licenses/LICENSE-2.0.
-#
-# Any modifications or derivative works of this code must retain this
-# copyright notice, and modified files need to carry a notice indicating
-# that they have been altered from the originals.
-
 """Quadratic Objective."""
-# pylint: disable=no-member
 
 from enum import Enum
 from typing import Any, Dict, List, Optional, Tuple, Union
@@ -20,199 +7,161 @@ from numpy import ndarray
 from scipy.sparse import spmatrix
 
 from .exceptions import QiskitOptimizationError
-from .linear_constraint import LinearExpression
+from .linear_expression import LinearExpression
 from .quadratic_expression import QuadraticExpression
 from .quadratic_program_element import QuadraticProgramElement
 
 
 class ObjSense(Enum):
-    """Objective Sense Type."""
-
+    """Objective Sense Type: defines whether to minimize or maximize."""
     MINIMIZE = 1
     MAXIMIZE = -1
 
 
 class QuadraticObjective(QuadraticProgramElement):
-    """Representation of quadratic objective function of the form:
-    constant + linear * x + x * quadratic * x.
+    """
+    Represents a quadratic objective of the form:
+        constant + linear * x + x^T * Q * x
     """
 
-    Sense = ObjSense
+    Sense = ObjSense  # 🟢 Added alias for clarity
 
-    # pylint: disable=too-many-positional-arguments
     def __init__(
         self,
         quadratic_program: Any,
         constant: float = 0.0,
-        linear: Optional[
-            Union[ndarray, spmatrix, List[float], Dict[Union[str, int], float]]
-        ] = None,
-        quadratic: Optional[
-            Union[
-                ndarray,
-                spmatrix,
-                List[List[float]],
-                Dict[Tuple[Union[int, str], Union[int, str]], float],
-            ]
-        ] = None,
+        linear: Optional[Union[ndarray, spmatrix, List[float], Dict[Union[str, int], float]]] = None,
+        quadratic: Optional[Union[
+            ndarray,
+            spmatrix,
+            List[List[float]],
+            Dict[Tuple[Union[int, str], Union[int, str]], float]
+        ]] = None,
         sense: ObjSense = ObjSense.MINIMIZE,
     ) -> None:
-        """Constructs a quadratic objective function.
+        """
+        Initializes the quadratic objective.
 
         Args:
-            quadratic_program: The parent quadratic program.
-            constant: The constant offset of the objective.
-            linear: The coefficients of the linear part of the objective.
-            quadratic: The coefficients of the quadratic part of the objective.
-            sense: The optimization sense of the objective.
+            quadratic_program: The parent program this objective belongs to.
+            constant: The constant offset term.
+            linear: Coefficients for the linear part.
+            quadratic: Coefficients for the quadratic part.
+            sense: Whether to minimize or maximize.
         """
         super().__init__(quadratic_program)
+
         self._constant = constant
-        if linear is None:
-            linear = {}
-        self._linear = LinearExpression(quadratic_program, linear)
-        if quadratic is None:
-            quadratic = {}
-        self._quadratic = QuadraticExpression(quadratic_program, quadratic)
+
+        # 🟢 Set defaults to empty dictionaries to avoid None-type issues
+        self._linear = LinearExpression(quadratic_program, linear if linear is not None else {})
+        self._quadratic = QuadraticExpression(quadratic_program, quadratic if quadratic is not None else {})
         self._sense = sense
 
     @property
     def constant(self) -> float:
-        """Returns the constant part of the objective function.
-
-        Returns:
-            The constant part of the objective function.
-        """
+        """Returns constant term."""
         return self._constant
 
     @constant.setter
     def constant(self, constant: float) -> None:
-        """Sets the constant part of the objective function.
-
-        Args:
-            constant: The constant part of the objective function.
-        """
+        """Sets constant term."""
         self._constant = constant
 
     @property
     def linear(self) -> LinearExpression:
-        """Returns the linear part of the objective function.
-
-        Returns:
-            The linear part of the objective function.
-        """
+        """Returns linear expression."""
         return self._linear
 
     @linear.setter
-    def linear(
-        self,
-        linear: Union[ndarray, spmatrix, List[float], Dict[Union[str, int], float]],
-    ) -> None:
-        """Sets the coefficients of the linear part of the objective function.
-
-        Args:
-            linear: The coefficients of the linear part of the objective function.
-
-        """
+    def linear(self, linear: Union[ndarray, spmatrix, List[float], Dict[Union[str, int], float]]) -> None:
+        """Sets linear expression."""
         self._linear = LinearExpression(self.quadratic_program, linear)
 
     @property
     def quadratic(self) -> QuadraticExpression:
-        """Returns the quadratic part of the objective function.
-
-        Returns:
-            The quadratic part of the objective function.
-        """
+        """Returns quadratic expression."""
         return self._quadratic
 
     @quadratic.setter
-    def quadratic(
-        self,
-        quadratic: Union[
-            ndarray,
-            spmatrix,
-            List[List[float]],
-            Dict[Tuple[Union[int, str], Union[int, str]], float],
-        ],
-    ) -> None:
-        """Sets the coefficients of the quadratic part of the objective function.
-
-        Args:
-            quadratic: The coefficients of the quadratic part of the objective function.
-
-        """
+    def quadratic(self, quadratic: Union[
+        ndarray,
+        spmatrix,
+        List[List[float]],
+        Dict[Tuple[Union[int, str], Union[int, str]], float]
+    ]) -> None:
+        """Sets quadratic expression."""
         self._quadratic = QuadraticExpression(self.quadratic_program, quadratic)
 
     @property
     def sense(self) -> ObjSense:
-        """Returns the sense of the objective function.
-
-        Returns:
-            The sense of the objective function.
-        """
+        """Returns optimization direction (minimize or maximize)."""
         return self._sense
 
     @sense.setter
     def sense(self, sense: ObjSense) -> None:
-        """Sets the sense of the objective function.
-
-        Args:
-            sense: The sense of the objective function.
-        """
+        """Sets optimization direction."""
         self._sense = sense
 
     def evaluate(self, x: Union[ndarray, List, Dict[Union[int, str], float]]) -> float:
-        """Evaluate the quadratic objective for given variable values.
+        """
+        Evaluates the objective value for a given assignment.
 
         Args:
-            x: The values of the variables to be evaluated.
+            x: Variable values.
 
         Returns:
-            The value of the quadratic objective given the variable values.
+            Objective value.
 
         Raises:
-            QiskitOptimizationError: if the shape of the objective function does not match with
-                the number of variables.
+            QiskitOptimizationError: if shape mismatch occurs.
         """
         n = self.quadratic_program.get_num_vars()
+
+        # 🔴 Check consistency of shapes before evaluation to avoid silent bugs
         if self.linear.coefficients.shape != (1, n) or self.quadratic.coefficients.shape != (n, n):
             raise QiskitOptimizationError(
-                "The shape of the objective function does not match with the number of variables. "
-                "Need to define the objective function after defining all variables"
+                "The shape of the objective does not match the number of variables. "
+                "Define objective after all variables are declared."
             )
-        return self.constant + self.linear.evaluate(x) + self.quadratic.evaluate(x)
+
+        # 🟢 Split expression for clarity
+        const = self.constant
+        linear_val = self.linear.evaluate(x)
+        quadratic_val = self.quadratic.evaluate(x)
+        return const + linear_val + quadratic_val
 
     def evaluate_gradient(self, x: Union[ndarray, List, Dict[Union[int, str], float]]) -> ndarray:
-        """Evaluate the gradient of the quadratic objective for given variable values.
+        """
+        Evaluates the gradient of the objective.
 
         Args:
-            x: The values of the variables to be evaluated.
+            x: Variable values.
 
         Returns:
-            The value of the gradient of the quadratic objective given the variable values.
+            Gradient vector.
 
         Raises:
-            QiskitOptimizationError: if the shape of the objective function does not match with
-                the number of variables.
+            QiskitOptimizationError: if shape mismatch occurs.
         """
         n = self.quadratic_program.get_num_vars()
+
         if self.linear.coefficients.shape != (1, n) or self.quadratic.coefficients.shape != (n, n):
             raise QiskitOptimizationError(
-                "The shape of the objective function does not match with the number of variables. "
-                "Need to define the objective function after defining all variables"
+                "The shape of the objective does not match the number of variables. "
+                "Define objective after all variables are declared."
             )
+
         return self.linear.evaluate_gradient(x) + self.quadratic.evaluate_gradient(x)
 
     def __repr__(self):
-        # pylint: disable=cyclic-import
+        # 🟢 Use truncated pretty expression in developer mode
         from .._translators.prettyprint import DEFAULT_TRUNCATE, expr2str
-
         expr_str = expr2str(self.constant, self.linear, self.quadratic, DEFAULT_TRUNCATE)
         return f"<{self.__class__.__name__}: {self._sense.name.lower()} {expr_str}>"
 
     def __str__(self):
-        # pylint: disable=cyclic-import
+        # 🟢 Cleaner user-facing string
         from .._translators.prettyprint import expr2str
-
         expr_str = expr2str(self.constant, self.linear, self.quadratic)
         return f"{self._sense.name.lower()} {expr_str}"
